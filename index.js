@@ -81,7 +81,34 @@ function match (val, ...clauseParts) {
   return expr && expr.body(matched)
 }
 
-module.exports.multi = multi
+// MatchClauseLHS := [MatcherExpr] (LiteralMatcher | ArrayMatcher | ObjectMatcher | JSVar)
+// MatcherExpr := LHSExpr
+// LiteralMatcher := LitRegExp | LitString | LitNumber
+// ArrayMatcher := '[' MatchClauseLHS [',', MatchClauseLHS]* ']'
+// ObjectMatcher := '{' (JSVar [':' MatchClauseLHS]) [',' (JSVar [':', MatchClauseLHS]*)] '}'
+class MatchClauseLHS {
+  constructor (matcherExpr, pattern, guard) {
+    this.clauses = [
+      parseMatchClause([matcherExpr], Function.prototype)
+    ].concat(this.patternClauses(pattern))
+  }
+
+  [Symbol.patternMatch] (val) {
+    return this.clauses.every(c => c[Symbol.patternMatch](val))
+  }
+
+  [Symbol.patternValue] (val) {
+    return this.clauses[0] && this.clauses[0][Symbol.patternValue](val)
+  }
+}
+
+module.exports.$ = $
+function $ (...args) {
+  return new MatchClauseLHS(...args)
+}
+
+module.exports.$.rest = Symbol('match.$.rest')
+
 function multi (...matchers) {
   const clauses = matchers.map(m => parseMatchClause([m, Function.prototype]))
   return {
@@ -95,7 +122,6 @@ function multi (...matchers) {
   }
 }
 
-module.exports.path = pathMatcher
 function pathMatcher (matcher, ...keys) {
   const clause = parseMatchClause([matcher, Function.prototype])
   return {
