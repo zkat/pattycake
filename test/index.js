@@ -10,7 +10,7 @@ test('plain match', t => {
   //   Object {x} => x
   //   {x} => x // synonym
   // }
-  t.equal(match({x: 1},
+  t.equal(match ({x: 1}) ( // eslint-disable-line
     Object, ({x}) => x
   ), 1, 'object matcher matched and destructuring worked')
   t.throws(
@@ -30,17 +30,20 @@ test('plain match', t => {
   //   Foo {x} => x
   //   {} => 'matched Object, not Foo'
   // }
-  t.equal(match(new Foo(1),
-    Foo, ({x}) => x,
-    Object, () => 'matched Object, not Foo'
-  ), 1, 'Custom class matched by instanceof')
+  t.equal(
+    match (new Foo(1)) ( // eslint-disable-line
+      Foo, ({x}) => x,
+      Object, () => 'matched Object, not Foo'
+    ),
+    1, 'Custom class matched by instanceof'
+  )
 
   // Sugared:
   // match (new Foo(1)) {
   //   {} => 'matched Object, not Foo'
   //   Foo {x} => x
   // }
-  t.equal(match(new Foo(1),
+  t.equal(match (new Foo(1)) ( // eslint-disable-line
     Object, () => 'matched Object, not Foo',
     Foo, ({x}) => x
   ), 'matched Object, not Foo', 'clause matching done in top-down order')
@@ -50,7 +53,7 @@ test('plain match', t => {
   //   Foo {x} => x
   //   {} => 'obj'
   // }
-  t.equal(match({x: 1},
+  t.equal(match ({x: 1}) ( // eslint-disable-line
     Foo, ({x}) => x,
     Object, () => 'obj'
   ), 'obj', 'matched Object, not Foo')
@@ -63,7 +66,7 @@ test('Compound matcher', t => {
   // match ({x: {y: 1}}) {
   //   {x: {y: 1}} => y
   // }
-  t.equal(match({x: {y: 1}},
+  t.equal(match ({x: {y: 1}}) ( // eslint-disable-line
     match.multi(
       Object,
       match.path(Object, 'x'),
@@ -79,7 +82,7 @@ test('RegExp matcher', t => {
   // match ('foobar') {
   //   /foo(bar)/ [match, submatch] => match + submatch
   // }
-  t.equal(match('foobar',
+  t.equal(match ('foobar') ( // eslint-disable-line
     /foo(bar)/, ([match, submatch]) => match + submatch
   ), 'foobarbar', 'matched regexp and receive match obj')
 

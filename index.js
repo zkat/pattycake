@@ -57,6 +57,9 @@ class LiteralMatchClause extends MatchClause {
 
 module.exports = match
 function match (val, ...clauseParts) {
+  if (!clauseParts.length) {
+    return (...clauseParts) => match(val, ...clauseParts)
+  }
   const clauses = clauseParts.reduce((acc, part, i) => {
     if (!(i % 2)) {
       acc.push([part])
