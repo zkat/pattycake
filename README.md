@@ -13,7 +13,7 @@ feature. But it'll help figure out what that could actually be!
 ## Table of Contents
 
 * [Example](#example)
-* [Design](#design)
+* [Design Decisions](#design-decisions)
 * [Bikesheds](#bikesheds)
 * [API](#api)
 
@@ -27,7 +27,7 @@ const val = match (await fetch(jsonService)) {
 }
 ```
 
-### Design decisions
+### <a href="design-decisions"></a> Design Decisions
 
 These are key, intentional design desicions made by this proposal in particular
 which I believe should stay as they are, and why:
