@@ -39,7 +39,7 @@ and treat it like a regular variable. This means that using `undefined` in the
 LHS of a match clause would bind _any value_ to that variable and make it
 available for that leg:
 
-```
+```js
 match (1) {
   undefined => 'always matches'
   1 => 'unreachable code'
@@ -49,7 +49,7 @@ match (1) {
 The alternative is to have a bit of a special case for `undefined` so it's
 always treated as a `===` comparison, the same way other atomic literals work:
 
-```
+```js
 match (1) {
   undefined => 'nope'
   1 => 'matches === 1'
@@ -60,7 +60,7 @@ Another argument in favor of the special case is so, instead of [making `match`
 automatically pun on `null` equality](null-punning), we can use `|` to do the equivalent of a
 `foo == null`:
 
-```
+```js
 var x
 match (x) {
   null | undefined => 'yay'
@@ -76,7 +76,7 @@ is worth the cost of inconsistency here. That is, we might want `null` in the
 LHS of a match clause to cause a `==` check, instead of a `===` check, which
 would make `undefined` match, as well:
 
-```
+```js
 match (undefined) {
   null => 'this matches'
 }
@@ -85,7 +85,7 @@ match (undefined) {
 On the other hand, this would make it confusing for people expecting a `===`
 match for this sort of literal. The main alternative would be to use a guard:
 
-```
+```js
 match (undefined) {
   x if (x == null) => 'this matches'
 }
@@ -93,5 +93,51 @@ match (undefined) {
 
 Or, alternatively, using `|` if [`undefined` is
 special-cased](#undefined-matching).
+
+#### <a href="match-assignment"></a> > Assigning matches to variables
+
+If you have a nested match, particularly a nested one, it would be useful to be
+able to bind those specific matches to a variable. There's a number of syntaxes
+that can be used for this:
+
+##### Option A: `as`
+
+This syntax is [used by
+F#](https://docs.microsoft.com/en-us/dotnet/fsharp/language-reference/pattern-matching).
+(TK TK Kat: I think there's an `as` proposal for JS already? somewhere?)
+
+```js
+match (x) {
+  {x: {y: 1} as x} => x.y === 1
+}
+```
+
+##### Option B: `@`
+
+This syntax seems to be by far the most common, and is used by
+[Rust](https://doc.rust-lang.org/book/second-edition/ch18-03-pattern-syntax.html#-bindings),
+[Haskell](https://en.wikibooks.org/wiki/Haskell/Pattern_matching#as-patterns),
+[Scala](http://www.scala-lang.org/files/archive/spec/2.11/08-pattern-matching.html#pattern-binders).
+Its main differences from `as` are that the variable goes before the match and `@`
+is more terse -- specially since spaces aren't necessary.
+
+```js
+match (x) {
+  {x: x@{y: 1}} => x.y === 1
+}
+```
+
+##### Option C: `=`
+
+I'm not sure this one would even work reasonably in JS, because `=` is already
+used for defaults in destructuring, but I'm including this one for the sake of
+completeness, because it's [what Erlang uses for
+this](http://learnyousomeerlang.com/syntax-in-functions#highlighter_784541)
+
+```js
+match (x) {
+  {x: x = {y: 1}} => x.y === 1
+}
+```
 
 ### API
