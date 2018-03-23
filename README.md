@@ -165,7 +165,8 @@ match (1) {
 #### <a href="undefined-match"></a> > `undefined` matching
 
 While `null` is an actual primitive literal, `undefined` is an immutable
-property of the global object. This means that `undefined` can be a regular
+property of the global object that happens to *contain* the undefined primitive 
+value (which is obtainable via `void 0`, etc). This means that `undefined` can be a regular
 variable, and can thus potentially be assigned by match expressions. There are
 thus two choices here that we could take as far as how `match` treats
 `undefined` matches:
@@ -182,8 +183,12 @@ match (1) {
 }
 ```
 
+This avoids any special cases in the matching rules, but a guard must be used 
+to actually test if the value is undefined.
+
 The alternative is to have a bit of a special case for `undefined` so it's
-always treated as a `===` comparison, the same way other atomic literals work:
+always treated as referring to the undefined primitive value, and matches with
+an `===` comparison, as the other primitive literals do:
 
 ```js
 match (1) {
@@ -192,14 +197,25 @@ match (1) {
 }
 ```
 
+This special-casing avoids a confusing footgun that the "consistent" approach allows,
+if authors assume that `undefined` refers to the primitive value, which they can
+usually do without problem:
+
+```js
+// If `undefined` is treated as a variable:
+match(1) {
+  undefined => 'always matches, and now undefined is bound to 1 in this body :('
+}
+```
+
 Another argument in favor of the special case is so, instead of [making `match`
-automatically pun on `null` equality](null-punning), we can use `|` to do the equivalent of a
+automatically pun on `null` equality](null-punning), we can use `||` to do the equivalent of a
 `foo == null`:
 
 ```js
 var x
 match (x) {
-  null | undefined => 'yay'
+  null || undefined => 'yay'
 }
 ```
 
