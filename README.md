@@ -94,6 +94,29 @@ match ([x, y]) {
 
 (versus `match (x, y) ...`)
 
+#### > `=>` for leg bodies
+
+The previous `match` proposal used `:` as the separator between matchers and
+bodies. I believe `=>` is a better choice here due to its correspondence to fat
+arrows, and how similar the scoping/`{}` rules would be. Bodies should be
+treated as expressions returning values, which is very different from how
+`switch` works. I believe this is enough reason to distance `match`'s leg syntax
+from `switch`'s.
+
+```js
+match (x) {
+  foo => foo + 1
+  {y: 1} => x.y === y
+  bar => {
+    console.log(bar)
+    return bar + 2
+  }
+}
+```
+
+I don't think this is worth bikeshedding over unless there's major concerns
+about syntactic ambiguity I haven't thought of.
+
 ### Bikesheds
 
 These are things that have different tradeoffs that are worth choosing between.
