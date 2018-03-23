@@ -1,6 +1,10 @@
 # pattycake [![npm version](https://img.shields.io/npm/v/pattycake.svg)](https://npm.im/pattycake) [![license](https://img.shields.io/npm/l/pattycake.svg)](https://npm.im/pattycake) [![Travis](https://img.shields.io/travis/zkat/pattycake.svg)](https://travis-ci.org/zkat/pattycake) [![AppVeyor](https://ci.appveyor.com/api/projects/status/github/zkat/pattycake?svg=true)](https://ci.appveyor.com/project/zkat/pattycake) [![Coverage Status](https://coveralls.io/repos/github/zkat/pattycake/badge.svg?branch=latest)](https://coveralls.io/github/zkat/pattycake?branch=latest)
 
-[`pattycake`](https://github.com/zkat/pattycake) is a little playground being used to prototype concepts surrounding the [TC39 pattern matching proposal](https://github.com/tc39/proposal-pattern-matching). It's not a spec, it's not a standard, and it doesn't represent the actual look and feel of the JS feature. But it'll help figure out what that could actually be!
+[`pattycake`](https://github.com/zkat/pattycake) is a little playground being
+used to prototype concepts surrounding the [TC39 pattern matching
+proposal](https://github.com/tc39/proposal-pattern-matching). It's not a spec,
+it's not a standard, and it doesn't represent the actual look and feel of the JS
+feature. But it'll help figure out what that could actually be!
 
 ## Install
 
@@ -9,22 +13,111 @@
 ## Table of Contents
 
 * [Example](#example)
-* [Features](#features)
+* [Design](#design)
 * [Bikesheds](#bikesheds)
 * [API](#api)
 
 ### Example
 
 ```javascript
+const val = match (await fetch(jsonService)) {
+  {status: 200, {headers: {'Content-Length': s}}} => `Response size is ${s}`
+  {status: 404} => 'JSON not found'
+  {status} if (status >= 400) => 'request error'
+}
 ```
 
-### Features
+### Design decisions
+
+These are key, intentional design desicions made by this proposal in particular
+which I believe should stay as they are, and why:
+
+#### <a href="variables-always-assign"></a> > Variables always assign
+
+When the match pattern is a variable, it should simply assign to that variable,
+instead of trying to compare the value somehow.
+
+```js
+const y = 2
+match (1) {
+  y => x === y // y is bound to 1
+}
+```
+
+Guards can be used instead, for comparisons:
+
+```js
+const y = 2
+match (1) {
+  x if (y === 2) => 'does not match'
+  x if (x === 1) => 'x is 1'
+}
+```
+
+See also [the bikeshed about pinning](#variable-pinning-operator) for a proposal
+on how to allow variable-based matching.
+
+##### Benefits:
+
+* Follows the precedent of every other match implementation I could find. This is about as universal as I think this gets? Unless I misread/misunderstood what another language is doing or missed an exception.
+* Consistent behavior: No ambiguity when a variable is not assigned vs when it's suddenly assigned in the scope. Behavior will remain the same.
+* Eliminates the need for an `else`/`default` leg, because assignment to any variable will be sufficient. JS programmers are already used to assigning variables that are then ignored (in functions, in particular), and different people have different tastes in what that should be. `_`, `other`, etc, would all be perfectly cromulent alternatives.
+
+#### > Primitives compared with `===`
+
+This proposal special-cases Array, Object, and RegExp literal matches to make
+them more convenient and intuitive, but Numbers, Strings, Booleans, and Null are
+always compared using `===`:
+
+```js
+match (x) => {
+  1 => 'x is 1'
+  'foo' => 'x is foo'
+  null => 'x is null (not undefined)'
+}
+```
+
+See also [the bikeshed about special-casing the `null` matcher](#null-punning),
+as well as the one [about making `undefined` another "primitive"
+matcher](#undefined-match).
+
+#### > Only one parameter to match against
+
+`match` accepts only a single argument to match against. This is sufficient,
+since arrays can be used with minimal syntactic overhead to achieve this effect:
+
+```js
+match ([x, y]) {
+  [1, 2] => ...
+}
+```
+
+(versus `match (x, y) ...`)
 
 ### Bikesheds
 
 These are things that have different tradeoffs that are worth choosing between.
 None of these options are strictly or clearly better than the other (imo), so
 they're worth discussing and making executive choices about.
+
+#### <a href="method-symbols"></a> > Matcher method symbols
+
+The original proposal used `Symbol.match`, but [that is already a "well-known"
+Symbol](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol#Well-known_symbols)
+used with RegExps. It's best for us to find a better one.
+
+This proposal uses `Symbol.patternMatch` and `Symbol.patternValue` for its
+methods, but that's all open to bikeshedding.
+
+```js
+class One {
+  [Symbol.patternMatch] (val) { val === 1 }
+}
+
+match (1) {
+  One x => 'x is 1'
+}
+```
 
 #### <a href="undefined-match"></a> > `undefined` matching
 
@@ -127,6 +220,19 @@ match (x) {
 }
 ```
 
+Another benefit of using `@` is that it could allow folks to use a matcher
+directly without needing to assign a variable to it, because the `@` operator
+could double-up as a matcher "tag":
+
+```js
+match (obj) {
+  @Foo => 'Foo[Symbol.patternMatch](obj) executed!'
+  _@Foo => '@Foo is a shorthand for this'
+  Foo {} => 'the way you would do it otherwise'
+  Foo _ => 'though this works, too'
+}
+```
+
 ##### Option C: `=`
 
 I'm not sure this one would even work reasonably in JS, because `=` is already
@@ -139,5 +245,71 @@ match (x) {
   {x: x = {y: 1}} => x.y === 1
 }
 ```
+
+#### <a href="variable-pinning-operator"></a> > Pin operator
+
+Since this proposal [treats variables as universal
+matches](#variables-always-assign), it leaves some space as far as what should
+actually be done to match against variables in the scope, instead of literals.
+
+This proposal initially assumes that guards will be used in cases like these,
+since they should generally work just fine, but there's also the possibility of
+incorporating [a pin
+operator](https://elixir-lang.org/getting-started/pattern-matching.html), like
+Elixir does, for forcing a match on a variable. This would work out to a
+shorthand only for primitive values.
+
+Using the operator directly from Elixir:
+
+```js
+const y = 1
+match (x) {
+  ^y => 'x is 1'
+  x if (x === y) => 'this is how you would do it otherwise'
+}
+```
+
+A more compelling reason to have this terseness might be to allow matches on
+`Symbol`s or other "constant"-like objects:
+
+```js
+import {FOO, BAR} from './constants.js'
+
+match (x) {
+  ^FOO => 'x was the FOO constant'
+  ^BAR => 'x was the BAR constant'
+}
+```
+
+It's also possible to choose all sorts of different operators for this, but I'm
+just using whatever Elixir does for this bit.
+
+An alternative might also be to use custom matcher objects/functions to allow
+this sort of equality:
+
+```js
+import {FOO, BAR} from './constants.js'
+
+class ConstantMatcher {
+  constructor (val) { this.val = val }
+  [Symbol.patternMatch] (val) { return this.val === val }
+}
+function ByVal (obj) {
+  return new ConstantMatcher(obj)
+}
+
+match (x) {
+  ByVal(c.FOO) x => 'got a FOO'
+  ByVal(c.BAR) x => 'got a BAR'
+}
+```
+
+This might be enough, and might even be a reason to consider a built-in version
+of this matcher.
+
+(Kat's opinion: we have terse enough guards that this seems useless. Elixir
+benefits from it mostly because it relies heavily on pattern matching on
+variable assignments, not just in its case statement. The JS version of this
+would have limited utility.)
 
 ### API
