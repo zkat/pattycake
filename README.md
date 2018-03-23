@@ -117,6 +117,26 @@ match (x) {
 I don't think this is worth bikeshedding over unless there's major concerns
 about syntactic ambiguity I haven't thought of.
 
+#### > Use `||` and `&&` for joining
+
+There was [some
+discussion](https://github.com/tc39/proposal-pattern-matching/issues/7) about
+different ways to join together multiple match patterns. This proposal picked `||`
+for one-of, and `&&` for all-of matches:
+
+```js
+match (x) {
+  1 || 2 || 3 || x if (x > 10) => '...'
+  Bar {} && Foo {} => 'instanceof both Bar and Foo classes'
+}
+```
+
+I believe this is better than `:` because, again, it distances itself more from
+the very very different `switch` semantics, and also has a very clear symmetry
+that allows `&&` to work just fine. It also fits with other pattern matching
+engines that allow alternatives like this actually do. I don't believe this is
+worth further bikeshedding.
+
 ### Bikesheds
 
 These are things that have different tradeoffs that are worth choosing between.
