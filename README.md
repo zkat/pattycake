@@ -214,6 +214,22 @@ match (x) {
 These are key, intentional design desicions made by this proposal in particular
 which I believe should stay as they are, and why:
 
+#### > ABNF for syntax
+
+The following is a rough ABNF-ish grammar for parsing match expressions:
+
+```
+Match := 'match' '(' RHSExpr ')' '{' MatchClause* '}'
+MatchClause := MatchClauseLHS [GuardExpr] '=>' ArrowFnBody MaybeASI
+MatchClauseLHS := [MatcherExpr] (LiteralMatcher | ArrayMatcher | ObjectMatcher | JSVar) [('||' | '&&') MatchClauseLHS]
+MatcherExpr := LHSExpr
+LiteralMatcher := RegExp | String | Number | Bool | Null
+ArrayMatcher := '[' MatchClauseLHS [',', MatchClauseLHS]* ']'
+ObjectMatcher := '{' KeyAndVal [',', KeyAndVal]* '}'
+KeyAndVal := JSVar | JSObjKey ':' MatchClauseLHS
+GuardExpr := 'if' '(' RHSExpr ')'
+```
+
 #### <a href="variables-always-assign"></a> > Variables always assign
 
 When the match pattern is a variable, it should simply assign to that variable,
@@ -320,22 +336,6 @@ the very very different `switch` semantics, and also has a very clear symmetry
 that allows `&&` to work just fine. It also fits with other pattern matching
 engines that allow alternatives like this actually do. I don't believe this is
 worth further bikeshedding.
-
-#### ABNF for syntax
-
-The following is a rough ABNF-ish grammar for parsing match expressions:
-
-```
-Match := 'match' '(' RHSExpr ')' '{' MatchClause* '}'
-MatchClause := MatchClauseLHS [GuardExpr] '=>' ArrowFnBody MaybeASI
-MatchClauseLHS := [MatcherExpr] (LiteralMatcher | ArrayMatcher | ObjectMatcher | JSVar) [('||' | '&&') MatchClauseLHS]
-MatcherExpr := LHSExpr
-LiteralMatcher := RegExp | String | Number | Bool | Null
-ArrayMatcher := '[' MatchClauseLHS [',', MatchClauseLHS]* ']'
-ObjectMatcher := '{' KeyAndVal [',', KeyAndVal]* '}'
-KeyAndVal := JSVar | JSObjKey ':' MatchClauseLHS
-GuardExpr := 'if' '(' RHSExpr ')'
-```
 
 ### Bikesheds
 

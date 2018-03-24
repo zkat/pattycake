@@ -1,17 +1,5 @@
 'use strict'
 
-// This module is intended as a prototype semi-desugaring of the following
-// ABNF-style grammar:
-//
-// Match := 'match' '(' RHSExpr ')' '{' MatchClause* '}'
-// MatchClause := MatchClauseLHS [GuardExpr] '=>' ArrowFnBody MaybeASI
-// MatchClauseLHS := [MatcherExpr] (LiteralMatcher | ArrayMatcher | ObjectMatcher | JSVar) [('||' | '&&') MatchClauseLHS]
-// MatcherExpr := LHSExpr
-// LiteralMatcher := RegExp | String | Number | Bool | Null
-// ArrayMatcher := '[' MatchClauseLHS [',', MatchClauseLHS]* ']'
-// ObjectMatcher := '{' (JSVar [':' MatchClauseLHS]) [',' (JSVar [':', MatchClauseLHS]*)] '}'
-// GuardExpr := 'if' '(' RHSExpr ')'
-
 Symbol.patternMatch = Symbol('patternMatch')
 Symbol.patternValue = Symbol('patternValue')
 
