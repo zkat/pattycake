@@ -133,6 +133,11 @@ Objects are destructured. Any variables mentioned in the match side MUST exist
 in the matched object, but additional properties on the object will be ignored.
 Matches within objects can be further nested with any other types.
 
+Object matchers support "rest params", that is, `{x, ...y}`. Unlike Array
+matchers, though, it is a `SyntaxError` to try to further destructure that rest
+param -- there is no real reason to do so, and this is also how current
+destructuring works.
+
 ##### Example
 
 ```js
@@ -140,6 +145,8 @@ match (x) {
   {x: 1, y} => ... // the y property is required, and is locally bound to y
   {} => ... // matches any object
   {x: {y: 1}} => ...
+  {x, ...y} => ... // binds all-other-properties to `y`.
+  {x, ...{y}} => ... // SyntaxError
   Foo {y} => ... // matches an instance of `Foo` or, if
                  // `Foo[Symbol.patternMatch]` is present, that method is called
                  // instead. y is destructured out of the `Foo` object if the
@@ -150,14 +157,16 @@ match (x) {
 #### <a href="array-matcher"></a> Arrays
 
 Array values are matches individually, just like with [Object
-matchers](#object-matcher). The array length must match, unless a splat is used
-(`[1, 2, ...etc]`), in which case the array must be at least as long as the
-number of entries before the splat.
+matchers](#object-matcher). The array length must match, unless a rest param is
+used (`[1, 2, ...etc]`), in which case the array must be at least as long as the
+number of entries before the rest param.
 
 Array destructuring supports using a custom matcher, just like Objects. When
 using custom matchers, the value is destructures as an `Array-like` object, so
 it doesn't need to be a subclass of `Array` -- the `length` property will be
 used for destructuring, along with any numerical keys.
+
+See also: [bikeshed on array rest params](#unbound-array-rest).
 
 ##### Example
 
@@ -166,6 +175,7 @@ match (x) {
   [a, b, 1] => ...
   [1, 2, null] => ...
   [1, ...etc] => ...
+  [1, ...[2]] => ... // Recursive matching on `rest` is allowed
   Foo [1, 2] => ...
 }
 ```
