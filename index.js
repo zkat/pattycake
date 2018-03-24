@@ -30,6 +30,17 @@ function match (val, ...clauseParts) {
   let matched
   let matchedVal
   const clause = clauses.find(clause => {
+    if (clause.matcher.extractor) {
+      if (clause.matcher.extractor[Symbol.patternMatch]) {
+        const extracted = clause.matcher.extractor[Symbol.patternMatch](val)
+        if (!extracted) { return false }
+        if (extracted && extracted[Symbol.patternValue]) {
+          val = extracted[Symbol.patternValue]
+        }
+      } else if (typeof clause.extractor === 'function') {
+        if (!(val instanceof clause.matcher.extractor)) { return false }
+      }
+    }
     matched = clause.matcher[Symbol.patternMatch](val)
     if (matched) {
       matchedVal = matched.hasOwnProperty(Symbol.patternValue)
@@ -194,7 +205,7 @@ function $ (extractor, matcher, guard) {
     extractor = undefined
   }
   // $({foo: $}/null/1/etc, x => x === 1)
-  if (!guard && typeof matcher === 'function') {
+  if (!guard && typeof matcher === 'function' && matcher !== $) {
     guard = matcher
     matcher = extractor
     extractor = undefined

@@ -62,6 +62,22 @@ test('object matcher', t => {
   t.equal(match ({x: 1}) ( // eslint-disable-line
     {x: $}, ({x}) => x
   ), 1, 'plain object is an alias for $(Object, {...})')
+
+  class None {}
+  class Just { constructor (val) { this.val = val } }
+  Just[Symbol.patternMatch] = function (val) {
+    if (val instanceof Just) { return {[Symbol.patternValue]: val.val} }
+  }
+  // Sugared:
+  // match (new Just(1)) {
+  //   Just x => x === 1 && 'ok',
+  //   None {} => 'nope'
+  // }
+  t.equal(match (new Just(1)) ( // eslint-disable-line
+    $(Just, $), x => x === 1 && 'ok',
+    $(None, {}), () => 'nope'
+  ), 'ok', 'extractor and toplevel $ matcher work')
+
   t.done()
 })
 
