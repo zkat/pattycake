@@ -243,8 +243,11 @@ matchers.
 
 ```js
 match (x) {
-  /foo(bar)/u [match, submatch] => match + submatch === 'foobarbar'
-  /(?<yyyy>\d{4})-(?<mm>\d{2})-(?<dd>\d{2})/u {groups: {yyyy, mm, dd}} => ...
+  /foo/ => ... // x matched /foo/ just fine.
+  /foo(bar)/u [match, submatch] => ... // array-destructuring for matches
+  /(?<yyyy>\d{4})-(?<mm>\d{2})-(?<dd>\d{2})/u {
+    groups: {yyyy, mm, dd}
+  } => ... // object-destructuring for matches, using named regexp groups!
 }
 ```
 
@@ -441,6 +444,32 @@ the very very different `switch` semantics, and also has a very clear symmetry
 that allows `&&` to work just fine. It also fits with other pattern matching
 engines that allow alternatives like this actually do. I don't believe this is
 worth further bikeshedding.
+
+#### <a href="performance"></a> > Performance considerations
+
+The general design of this `match` leans heavily towards hopefully allowing
+compiler-side optimizations. By minimizing runtime generation of matching logic,
+most match clauses can be filtered according to PIC status
+(monomorphic/polymorphic/etc), as well as by Map ("hidden classes"). A smart
+enough compiler should be able to reorder and omit branches and possibly reduce
+certain simpler match expressions to what a low-level `switch` might be.
+
+The fact that variable matchers do not need to match against variables in
+surrounding scopes, and worry about their internal types, is probably also a big
+advantage -- variable bindings are simply typed the same as the corresponding
+value passed into `match` (again, optimized with PICs).
+
+The main showstoppers for this sort of analysis are, I think,
+[extractors](#extractors) and perhaps guard expressions. Neither of these
+features are optimized to be users' main code paths, and performance-sensitive
+code can be rewritten to remove these extensions as needed.
+
+Complex compounds might also cause issues (`&&`/`||`), but these can be
+optimized if all clauses have identical-typed matchers (`1 || 2 || 3 => ...`).
+
+I'm not a browser engine implementer, though, so I'm probably way off base with
+what would actually have an impact on performance, but I figured I should write
+a bit about this anyway.
 
 ### Bikesheds
 
