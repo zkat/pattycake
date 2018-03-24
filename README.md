@@ -216,6 +216,9 @@ using custom matchers, the value is destructures as an `Array-like` object, so
 it doesn't need to be a subclass of `Array` -- the `length` property will be
 used for destructuring, along with any numerical keys.
 
+Arbitrary [extractors](#extractors) can be used with Array matchers, as long as
+they return Array-like values.
+
 See also: [bikeshed on array rest params](#unbound-array-rest).
 
 ##### Example
@@ -688,3 +691,101 @@ not wanting to have an unbound variable. That is, `[a, b, ..._]` achieves
 essentially the same thing `[a, b, ...]` does.
 
 Should this syntax be added to this proposal as well?
+
+#### <a href="pattern-match-protocol"></a> `Symbol.patternMatch` protocol
+
+Currently, this proposal uses two "Well-known Symbols": `Symbol.patternMatch`
+and `Symbol.patternValue`. The intent of these is to emulate Scala's Extractor
+protocol.
+
+There is some awkwardness in the translation here: Scala expects an `Option`
+object to be returned (a data type of `Some` or `None`), and uses the value
+inside the `Some` as the "extracted" value. JavaScript has no widely-used
+unambiguous Maybe protocol, so that leaves us with a few alternatives as far as
+how to implement identical behavior.
+
+I believe the general feature of having extractors, with the current user-side
+syntax for invoking them, and the concept of a `Symbol.patternMatch` method on
+extractor objects is the right thing, and this proposal should keep it, but
+there are questions about how to handle the values returned by `patternMatch`:
+
+##### Option A (current impl)
+
+`match` looks for `Symbol.patternMatch` methods on the Extractor argument
+associated with a match, and the match succeeds iff the return value of
+`Symbol.patternMatch` is truthy. To do the equivalent of `Some(val)`, you would
+instead use the `Symbol.patternValue` symbol to tag a key in an object that you
+then return: `{[Symbol.patternValue]: val}`.
+
+This version is a bit weird, requires an extra symbol to work effectively, and
+involves consing on individual matches, which can cause a hit in performance.
+The advantage of doing things this was is that you can extract `undefined`,
+`null`, `false`, etc, as the value of a match without worrying about ambiguity
+or `undefined`-punning, which can be a footgun.
+
+```js
+class Foo {
+  [Symbol.patternMatch] (val) {
+    if (val == null) {
+      return {[Symbol.patternValue]: null} // `null` value extracted
+    } else {
+      false
+    }
+  }
+}
+```
+
+##### Option B
+
+Expect `Symbol.patternMatch` to return `undefined` when it fails, and treat all
+other value types as a successful match -- including `false`, `null`, etc. This
+can present a bit of a footgun for users authoring `Symbol.patternMatch`
+methods, since they might expect that method to work off booleans.
+
+The advantage of this way of doing things is that it feels a little more
+JavaScript-y than `Maybe`-style operations, and requires no additional consing
+up of objects with magic keys. It also eliminates the need for the
+`Symbol.patternValue` symbol altogether, which might be nice.
+
+An argument in favor of switching to this mode is that even though it can be a
+bit of a footgun, writing custom extractors is likely not a super common thing
+for users to do -- mostly reserved for library authors and such. But that's just
+a hunch.
+
+```js
+class Foo {
+  [Symbol.patternMatch] (val) {
+    if (val === null) { return null } // null return treated as match success
+    // undefined return prevents a match
+  }
+}
+```
+
+##### Option C
+
+One way to possibly meet halfway is to pass a callback into
+`Symbol.patternMatch` that can be called on a value that's intended as the
+"extracted" value.
+
+```js
+class Foo {
+  [Symbol.patternMatch] (val, extract) {
+    // Calling `extract` is the only way for matches to succeed
+    if (val === null) { return extract(val) }
+  }
+}
+```
+
+##### Option D
+
+Similarly to Option C, the "magic constructor" could be stored in
+`Symbol.patternMatch` itself, and defining successful matches as anything that
+returns an object crafted by that function:
+
+```js
+class Foo {
+  [Symbol.patternMatch] (val) {
+    if (val == null) { return Symbol.patternMatch.match(val) }
+  }
+}
+```
