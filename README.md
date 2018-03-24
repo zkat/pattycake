@@ -230,6 +230,58 @@ KeyAndVal := JSVar | JSObjKey ':' MatchClauseLHS
 GuardExpr := 'if' '(' RHSExpr ')'
 ```
 
+#### <a href="no-fallthrough"></a> > No Clause Fallthrough
+
+As part of distancing this feature from `switch`, and focusing on semantics that
+work best for it, fallthrough is not possible between multiple legs. It is
+expected that match clause are complete enough for picking a single leg, and
+further skipping can be done using guards or nested `match`.
+
+That is:
+
+```js
+match (x) {
+  {x: 1, y} => {
+    if (y > 10) { continue}
+  }
+  {x: 1} => {
+    ...
+  }
+}
+```
+
+Is better written as:
+
+```js
+match (x) {
+  {x: 1, y} if (y <= 10) => ...
+  {x: 1} => ...
+}
+```
+
+Other use-cases for "fallthrough" in `switch` can be achieved with [compound
+matchers](#compound-matcher):
+
+```js
+switch (x) {
+  case 'foo':
+  case 'bar':
+    doThing()
+    break
+  case 'baz':
+    doOtherThing()
+}
+```
+
+Can be rewritten with `match` as:
+
+```js
+match (x) {
+  'foo' || 'bar' => doThing()
+  'baz' => doOtherThing()
+}
+```
+
 #### <a href="variables-always-assign"></a> > Variables always assign
 
 When the match pattern is a variable, it should simply assign to that variable,
