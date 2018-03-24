@@ -309,6 +309,22 @@ that allows `&&` to work just fine. It also fits with other pattern matching
 engines that allow alternatives like this actually do. I don't believe this is
 worth further bikeshedding.
 
+#### ABNF for syntax
+
+The following is a rough ABNF-ish grammar for parsing match expressions:
+
+```
+Match := 'match' '(' RHSExpr ')' '{' MatchClause* '}'
+MatchClause := MatchClauseLHS [GuardExpr] '=>' ArrowFnBody MaybeASI
+MatchClauseLHS := [MatcherExpr] (LiteralMatcher | ArrayMatcher | ObjectMatcher | JSVar) [('||' | '&&') MatchClauseLHS]
+MatcherExpr := LHSExpr
+LiteralMatcher := RegExp | String | Number | Bool | Null
+ArrayMatcher := '[' MatchClauseLHS [',', MatchClauseLHS]* ']'
+ObjectMatcher := '{' KeyAndVal [',', KeyAndVal]* '}'
+KeyAndVal := JSVar | JSObjKey ':' MatchClauseLHS
+GuardExpr := 'if' '(' RHSExpr ')'
+```
+
 ### Bikesheds
 
 These are things that have different tradeoffs that are worth choosing between.
@@ -337,7 +353,7 @@ match (1) {
 #### <a href="undefined-match"></a> > `undefined` matching
 
 While `null` is an actual primitive literal, `undefined` is an immutable
-property of the global object that happens to *contain* the undefined primitive 
+property of the global object that happens to *contain* the undefined primitive
 value (which is obtainable via `void 0`, etc). This means that `undefined` can be a regular
 variable, and can thus potentially be assigned by match expressions. There are
 thus two choices here that we could take as far as how `match` treats
@@ -355,7 +371,7 @@ match (1) {
 }
 ```
 
-This avoids any special cases in the matching rules, but a guard must be used 
+This avoids any special cases in the matching rules, but a guard must be used
 to actually test if the value is undefined.
 
 The alternative is to have a bit of a special case for `undefined` so it's
