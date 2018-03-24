@@ -23,7 +23,7 @@ test('object matcher', t => {
 
   // Sugared:
   // match (new Foo(1)) {
-  //   Foo {x} => x
+  //   Foo {x} => x,
   //   Object {} => 'matched Object, not Foo'
   // }
   class Foo { constructor (x) { this.x = x } }
@@ -37,7 +37,7 @@ test('object matcher', t => {
 
   // Sugared:
   // match (new Foo(1)) {
-  //   Object {} => 'matched Object, not Foo'
+  //   Object {} => 'matched Object, not Foo',
   //   Foo {x} => x
   // }
   t.equal(match (new Foo(1)) ( // eslint-disable-line
@@ -47,7 +47,7 @@ test('object matcher', t => {
 
   // Sugared:
   // match ({x: 1}) {
-  //   Foo {x} => x
+  //   Foo {x} => x,
   //   Object {} => 'obj'
   // }
   t.equal(match ({x: 1}) ( // eslint-disable-line
@@ -84,7 +84,7 @@ test('object matcher', t => {
 test('Guards! Guards!', t => {
   // Sugared:
   // match (1) {
-  //   x if (x === 2) => 'nope'
+  //   x if (x === 2) => 'nope',
   //   x if (x === 1) => 'ok'
   // }
   t.equal(match (1) ( // eslint-disable-line
@@ -98,7 +98,7 @@ test('Guards! Guards!', t => {
 test('Nested object matching', t => {
   // Sugared:
   // match ({x: {y: 1}}) {
-  //   {x: {y: 2}} => y
+  //   {x: {y: 2}} => y,
   //   {x: {y: 1}} => y
   // }
   t.equal(match ({x: {y: 1}}) ( // eslint-disable-line
@@ -121,7 +121,7 @@ test('Number matcher', t => {
   // Sugared:
   // const two = 2
   // match (two) {
-  //   1 => 'nope'
+  //   1 => 'nope',
   //   ^two => 'ok'
   // }
   const two = 2
@@ -175,7 +175,7 @@ test('Array matcher', t => {
 
   // Sugared:
   // match ([1, 2]) {
-  //   [1, 2, 3, ...rest] => ...
+  //   [1, 2, 3, ...rest] => ...,
   //   [1, 2, ...rest] => ...
   // }
   t.equal(match ([1, 2]) ( // eslint-disable-line
@@ -219,7 +219,7 @@ test('Array matcher', t => {
 test('or-matcher', t => {
   // Sugared:
   // match (2) {
-  //   1 || 3 => 'nope'
+  //   1 || 3 => 'nope',
   //   2 || 4 => 'ok'
   // }
   t.equal(match (2) ( // eslint-disable-line
@@ -229,7 +229,7 @@ test('or-matcher', t => {
 
   // Sugared:
   // match ('foo') {
-  //   'bar' || 'baz' => 'nope'
+  //   'bar' || 'baz' => 'nope',
   //   'bar' || x if (x === 'foo') => 'ok'
   // }
   t.equal(match ('foo') ( // eslint-disable-line
@@ -243,7 +243,7 @@ test('or-matcher', t => {
 test('and-matcher', t => {
   // Sugared:
   // match ({x: 1, y: 2}) {
-  //   {x: 1} && {y: 1} => 'nope'
+  //   {x: 1} && {y: 1} => 'nope',
   //   {x: 1} && {y: 2} => 'ok'
   // }
   t.equal(match ({x: 1, y: 2}) ( // eslint-disable-line
@@ -253,7 +253,7 @@ test('and-matcher', t => {
 
   // Sugared:
   // match ([1, 2, 3]) {
-  //   [1, ...] && [a, 1, b] if (b === 4)=> 'nope'
+  //   [1, ...] && [a, 1, b] if (b === 4) => 'nope',
   //   [1, ...] && [a, 2, b] => 'ok'
   // }
   t.equal(match ([1, 2, 3]) ( // eslint-disable-line
