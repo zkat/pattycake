@@ -38,11 +38,11 @@ for the same underlying concepts.
 To convert a sugary `match` to a `pattycake` match:
 1. Replace the main `{}` pair with `()`
 2. Separate match clauses and bodies into matcher expressions and a fat arrow function, using the parameter list for the fat arrow for destructuring.
-3. If your clause uses the format `Foo x`, `Foo {}`, etc, use `match.$` to create the corresponding clause: `match.$(Foo, {})`
+3. If your clause uses an extractor, as in `Foo x`, `Foo {}`, etc, use `match.$` to create the corresponding clause: `match.$(Foo, {})`
 4. Replace any variable clauses in the match side with `match.$`.
 5. If using guards, convert the guard to a function and pass it as the last argument to `match.$`. If you weren't already using `match.$` for a certain clause (because it wasn't necessary), wrap that clause with `match.$` and pass the guard function as the second argument.
 6. If using `||` or `&&`, wrap the expressions in `$.or` or `$.and`, with each alternative as an argument to those functions.
-7. If using `...splat`s with array matchers, replace the `...splat` with `$.rest` and destructure the array in the fat arrow body.
+7. If using `...rest`s with array matchers, replace the `...rest` with `$.rest` and destructure the array in the fat arrow body.
 
 ##### Example
 
@@ -83,12 +83,62 @@ the body to the right of the arrow for the clause that succeeds, returning its
 final value.
 
 There are x types of clauses: primitives, RegExp, Object, Array, `||`, `&&`, and
-variable. Each of these clauses, except `||` and `&&`, can include a custom
-matcher.
+variable. Each of these clauses, except `||` and `&&`, can include a [custom
+extractor](#extractors).
 
 Composite clauses are able to further destructure and match their input, and the
 top level clause can include a guard expression to further filter individual
 clauses.
+
+#### <a href="extractors"></a> Extractors
+
+Extractors allow extending the pattern matching agent by allowing users to
+customize the values used for matching and destructuring in clauses. Extractors
+can apply to any variable, regexp, object, or primitive matcher expression, but
+not directly to `||` and `&&` groups.
+
+Extractors use a well-known Symbol, `Symbol.patternMatch`, which can decide
+whether or not a particular clause will match, and can further return an object
+with a `Symbol.patternValue` property to override the object that will be passed
+through to the matcher for further matching/destructuring.
+
+They are based on [Scala's own extractor
+feature](https://docs.scala-lang.org/tour/extractor-objects.html), which uses an
+`unapply()` method that corresponds to `Symbol.patternMatch`.
+
+If a function is used in an extractor position and it has no
+`Symbol.patternMatch` method, an `instanceof` check will be done instead.
+
+##### Example
+
+```js
+// A class without `Symbol.patternMatch` will use `instanceof`
+class Foo {}
+
+// Any object with a `Symbol.patternMatch` method can be used.
+const MyExtractor = {
+  [Symbol.patternMatch] (val) {
+    return val % 2 === 0 ? true : false
+  }
+}
+
+const CustomerID = {
+  [Symbol.patternMatch] (val) {
+    if (typeof val !== 'string') { return false }
+    const name = val.split('--')[0]
+    if (name) {
+      // Custom value using `Symbol.patternValue`
+      return {[Symbol.patternValue]: name}
+    }
+  }
+}
+
+match (x) {
+  Foo {} => ... // matches if `x` is a `new Foo()`
+  MyExtractor x => // matches if `x` is an even number.
+  CustomerID 'Alex' => // matches if `x` is something like 'Alex--1234567'
+}
+```
 
 #### <a href="variable-matcher"></a> Variables
 
@@ -221,7 +271,7 @@ The following is a rough ABNF-ish grammar for parsing match expressions:
 ```
 Match := 'match' '(' RHSExpr ')' '{' MatchClause* '}'
 MatchClause := MatchClauseLHS [GuardExpr] '=>' ArrowFnBody MaybeASI
-MatchClauseLHS := [MatcherExpr] (LiteralMatcher | ArrayMatcher | ObjectMatcher | JSVar) [('||' | '&&') MatchClauseLHS]
+MatchClauseLHS := [ExtractorExpr] (LiteralMatcher | ArrayMatcher | ObjectMatcher | JSVar) [('||' | '&&') MatchClauseLHS]
 MatcherExpr := LHSExpr
 LiteralMatcher := RegExp | String | Number | Bool | Null
 ArrayMatcher := '[' MatchClauseLHS [',', MatchClauseLHS]* ']'

@@ -27,37 +27,33 @@ function match (val, ...clauseParts) {
   }, []).map(([matcher, body]) => {
     return new MatchClause($(matcher), body)
   })
+  let matched
+  let matchedVal
   const clause = clauses.find(clause => {
-    if (clause.matcher[Symbol.patternMatch](val)) {
+    matched = clause.matcher[Symbol.patternMatch](val)
+    if (matched) {
+      matchedVal = matched.hasOwnProperty(Symbol.patternValue)
+        ? matched[Symbol.patternValue]
+        : val
       if (clause.matcher.guard) {
-        return clause.matcher.guard(val)
+        return clause.matcher.guard(matchedVal)
       }
       return true
     }
   })
-  if (clause && clause.matcher[Symbol.patternValue]) {
-    return clause.body(clause.matcher[Symbol.patternValue](val))
-  } else if (clause) {
-    return clause.body(val)
+  if (clause) {
+    return clause.body(matchedVal)
   } else {
     throw new MatchError('badmatch')
   }
 }
 
-// MatchClauseLHS := [MatchType] (LiteralMatcher | ArrayMatcher | ObjectMatcher | JSVar) [GuardExpr]
-// MatchType := LHSExpr
-// LiteralMatcher := RegExp | String | Number | Bool | Null
-// ArrayMatcher := '[' MatchClauseLHS [',', MatchClauseLHS]* ']'
-// ObjectMatcher := '{' (JSVar [':' MatchClauseLHS]) [',' (JSVar [':', MatchClauseLHS]*)] '}'
-// GuardExpr := 'if' '(' RHSExpr ')'
 class Matcher {
-  constructor (matchType, matcher, guard) {
-    this.matchType = matchType
+  constructor (extractor, matcher, guard) {
+    this.extractor = extractor
     this.matcher = matcher
     this.guard = guard
   }
-  [Symbol.patternValue] (val) { return val }
-  [Symbol.patternValue] (val) { return val }
 }
 
 class LiteralMatcher extends Matcher {
@@ -67,8 +63,8 @@ class LiteralMatcher extends Matcher {
 }
 
 class ArrayMatcher extends Matcher {
-  constructor (matchType, matcher, guard) {
-    super(matchType, matcher, guard)
+  constructor (extractor, matcher, guard) {
+    super(extractor, matcher, guard)
     const $restIdx = this.matcher.indexOf($.rest)
     this.strictLength = $restIdx === -1
     if (!this.strictLength) {
@@ -76,32 +72,52 @@ class ArrayMatcher extends Matcher {
     }
     this.subMatchers = this.matcher.map(x => $(x))
   }
-  [Symbol.patternValue] (val) { return Array.from(val) }
   [Symbol.patternMatch] (val) {
-    if (!val) { return false }
-    if (this.matchType && this.matchType[Symbol.patternMatch]) {
-      if (!this.matchType[Symbol.patternMatch](val)) { return false }
-    } else if (this.matchType && typeof this.matchType === 'function') {
-      if (!(val instanceof this.matchType)) { return false }
+    if (this.extractor && this.extractor[Symbol.patternMatch]) {
+      const match = this.extractor[Symbol.patternMatch](val)
+      if (!match) {
+        return false
+      } else if (match.hasOwnProperty(Symbol.patternValue)) {
+        val = match[Symbol.patternValue]
+      }
+    } else if (this.extractor && typeof this.extractor === 'function') {
+      if (!(val instanceof this.extractor)) { return false }
     }
-    if (!val.hasOwnProperty('length')) { return false }
+    if (!val) { return false }
+    if (val.length === undefined) { return false }
     if (this.strictLength && val.length !== this.matcher.length) {
       return false
     }
     if (!this.strictLength && val.length < this.minLength) { return false }
     const subs = this.subMatchers
-    return [].every.call(val, (elt, i) => (
-      subs[i] === $ ||
-      subs[i] === $.rest ||
-      !subs[i] ||
-      (subs[i][Symbol.patternMatch] && subs[i][Symbol.patternMatch](elt, val[i]))
-    ))
+    const arr = []
+    let gotRest = false
+    for (let i = 0; i < val.length; i++) {
+      if (gotRest || subs[i] === $) {
+        arr[i] = val[i]
+      } else if (subs[i] === $.rest) {
+        gotRest = true
+        arr[i] = val[i]
+      } else if (!subs[i]) {
+        arr[i] = val[i]
+      } else if (subs[i][Symbol.patternMatch]) {
+        const match = subs[i][Symbol.patternMatch](val[i])
+        if (!match) {
+          return false
+        } else if (match.hasOwnProperty(Symbol.patternValue)) {
+          arr[i] = match[Symbol.patternValue]
+        } else {
+          arr[i] = val[i]
+        }
+      }
+    }
+    return {[Symbol.patternValue]: arr}
   }
 }
 
 class ObjectMatcher extends Matcher {
-  constructor (matchType, matcher, guard) {
-    super(matchType, matcher, guard)
+  constructor (extractor, matcher, guard) {
+    super(extractor, matcher, guard)
     this.subMatchers = {}
     Object.keys(this.matcher).forEach(k => {
       this.subMatchers[k] = $(this.matcher[k])
@@ -109,32 +125,48 @@ class ObjectMatcher extends Matcher {
   }
   [Symbol.patternMatch] (val) {
     if (!val) { return false }
-    if (this.matchType && this.matchType[Symbol.patternMatch]) {
-      if (!this.matchType[Symbol.patternMatch](val)) { return false }
-    } else if (this.matchType) {
-      if (!(val instanceof this.matchType)) { return false }
+    if (this.extractor && this.extractor[Symbol.patternMatch]) {
+      const match = this.extractor[Symbol.patternMatch](val)
+      if (!match) {
+        return false
+      } else if (match.hasOwnProperty(Symbol.patternValue)) {
+        val = match[Symbol.patternValue]
+      }
+    } else if (this.extractor && typeof this.extractor === 'function') {
+      if (!(val instanceof this.extractor)) { return false }
     }
     const subs = this.subMatchers
-    const ret = Object.keys(subs).every(k => {
-      if (!val.hasOwnProperty(k)) { return false }
-      if (subs[k] === $ || !subs[k]) { return true }
-      return (
-        subs[k][Symbol.patternMatch] && subs[k][Symbol.patternMatch](val[k])
-      )
-    })
-    return ret
+    const ret = {}
+    return Array.from(
+      new Set(Object.keys(subs).concat(Object.keys(val)))
+    ).every(k => {
+      if (val[k] === undefined) {
+        return false
+      } else if (subs[k] === $ || !subs[k]) {
+        ret[k] = val[k]
+        return true
+      } else if (subs[k][Symbol.patternMatch]) {
+        const matched = subs[k][Symbol.patternMatch](val[k])
+        if (!matched) {
+          return false
+        } else if (matched.hasOwnProperty(Symbol.patternValue)) {
+          ret[k] = matched[Symbol.patternValue]
+          return true
+        } else {
+          ret[k] = val[k]
+          return true
+        }
+      } else {
+        return false
+      }
+    }) && {[Symbol.patternValue]: ret}
   }
 }
 
 class RegExpMatcher extends Matcher {
-  [Symbol.patternValue] (val) { return this.matcher.exec(val) }
   [Symbol.patternMatch] (val) {
-    const method = this.matcher[Symbol.patternMatch]
-    if (method) {
-      return method(val)
-    } else {
-      return this.matcher.exec(val)
-    }
+    const match = this.matcher.exec(val)
+    if (match) { return {[Symbol.patternValue]: match} }
   }
 }
 
@@ -155,31 +187,36 @@ class AndMatcher extends Matcher {
 }
 
 module.exports.$ = $ // aka `JSVar` for our purposes
-function $ (matchType, matcher, guard) {
+function $ (extractor, matcher, guard) {
   // $({foo: $}), $(1), $(null), etc
   if (arguments.length === 1) {
-    matcher = matchType
-    matchType = undefined
+    matcher = extractor
+    extractor = undefined
   }
   // $({foo: $}/null/1/etc, x => x === 1)
   if (!guard && typeof matcher === 'function') {
     guard = matcher
-    matcher = matchType
-    matchType = undefined
+    matcher = extractor
+    extractor = undefined
   }
+  // Can't extend RegExp so special-casing right here
+  if (extractor && {}.toString.call(extractor) === '[object RegExp]') {
+    extractor = new RegExpMatcher(extractor)
+  }
+
   if (matcher === undefined || matcher === $ || matcher === $.rest) {
-    return new AnyMatcher(matchType, matcher, guard)
+    return new AnyMatcher(extractor, matcher, guard)
   } else if (matcher instanceof Matcher) {
     // $($(...))
     return matcher
   } else if (typeof matcher === 'number' || typeof matcher === 'string' || typeof matcher === 'boolean' || matcher === null) {
-    return new LiteralMatcher(matchType, matcher, guard)
+    return new LiteralMatcher(extractor, matcher, guard)
   } else if (Array.isArray(matcher)) {
-    return new ArrayMatcher(matchType || Array, matcher, guard)
+    return new ArrayMatcher(extractor, matcher, guard)
   } else if ({}.toString.call(matcher) === '[object RegExp]') {
-    return new RegExpMatcher(matchType, matcher, guard)
+    return new RegExpMatcher(extractor, matcher, guard)
   } else if (typeof matcher === 'object') {
-    return new ObjectMatcher(matchType, matcher, guard)
+    return new ObjectMatcher(extractor, matcher, guard)
   } else {
     throw new Error('Invalid matcher: ' + require('util').inspect(matcher))
   }
