@@ -23,7 +23,7 @@ feature. But it'll help figure out what that could actually be!
 const val = match (await fetch(jsonService)) {
   {status: 200, {headers: {'Content-Length': s}}} => `Response size is ${s}`,
   {status: 404} => 'JSON not found',
-  {status} if (status >= 400) => 'request error'
+  res@{status} if (status >= 400) => throw new RequestError(res)
 }
 ```
 
@@ -81,6 +81,9 @@ match (x) (
 The `match` expression compares `val` against a number of clauses, and executes
 the body to the right of the arrow for the clause that succeeds, returning its
 final value.
+
+If all clauses fail to match, a `MatchError` is thrown. To prevent this, use a
+[fallthrough variable matcher](#variable-matcher) as the last clause.
 
 There are x types of clauses: primitives, RegExp, Object, Array, `||`, `&&`, and
 variable. Each of these clauses, except `||` and `&&`, can include a [custom
