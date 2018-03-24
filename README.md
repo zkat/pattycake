@@ -270,20 +270,59 @@ match (x) {
 These are key, intentional design desicions made by this proposal in particular
 which I believe should stay as they are, and why:
 
-#### > ABNF for syntax
-
-The following is a rough ABNF-ish grammar for parsing match expressions:
+#### > Syntax Sketch
 
 ```
-Match := 'match' '(' RHSExpr ')' '{' MatchClause* '}'
-MatchClause := MatchClauseLHS [GuardExpr] '=>' ArrowFnBody MaybeASI
-MatchClauseLHS := [ExtractorExpr] (LiteralMatcher | ArrayMatcher | ObjectMatcher | JSVar) [('||' | '&&') MatchClauseLHS]
-MatcherExpr := LHSExpr
-LiteralMatcher := RegExp | String | Number | Bool | Null
-ArrayMatcher := '[' MatchClauseLHS [',', MatchClauseLHS]* ']'
-ObjectMatcher := '{' KeyAndVal [',', KeyAndVal]* '}'
-KeyAndVal := JSVar | JSObjKey ':' MatchClauseLHS
-GuardExpr := 'if' '(' RHSExpr ')'
+Expression :
+  MatchExpression
+
+MatchExpression :
+  // Note: this requires a cover grammar to handle ambiguity
+  // between a call to a match function and the match expr.
+  `match` [no |LineTerminator| here] `(` Expression `)` [no |LineTerminator| here] `{` MatchExpressionClauses `}`
+
+MatchExpressionClauses :
+  MatchExpressionClause
+  MatchExpressionsClauses `,` MatchExpressionsClause
+
+MatchExpressionClause :
+  MatchExpressionClauseLHS [MatchGuardExpression] `=>` ArrowBody
+
+MatchExpressionClauseLHS :
+  [MatchExtractorExpresson] MatchExpressionPattern
+
+MatchGuardExpression :
+  `if` [no |LineTerminator| here] `(` Expression `)`
+
+MatchExpressionPattern :
+  ObjectMatchPattern
+  ArrayMatchPattern
+  IdentifierMatchPattern
+  LiteralMatchPattern
+
+ObjectMatchPattern :
+  `{` ObjectMatchKeyVal [`,`, ObjectMatchKeyVal ]* `}`
+
+ObjectMatchKeyVal :
+  Variable
+  ObjectKey `:` MatchExressionClauseLHS
+
+ArrayMatchPattern :
+  `[` ArrayMatchPatternElement [`,`, ArrayMatchPatternElement]* `]`
+
+ArrayMatchPatternElement :
+  MatchExpressionClauseLHS
+  `...` Variable
+
+IdentifierMatchPattern :
+  Variable
+
+LiteralMatchPattern :
+  LiteralNumber
+  LiteralString
+  LiteralBoolean
+  LiteralNull
+  LiteralRegExp
 ```
 
 #### <a href="no-fallthrough"></a> > No Clause Fallthrough
