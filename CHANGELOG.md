@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="3.0.0"></a>
+# [3.0.0](https://github.com/zkat/pattycake/compare/v2.0.0...v3.0.0) (2018-03-24)
+
+
+### Features
+
+* **match:** Scala-style extractors ([b5b065e](https://github.com/zkat/pattycake/commit/b5b065e))
+
+
+### BREAKING CHANGES
+
+* **match:** Symbol.patternMatch/patternValue use a new API
+
+
+
 <a name="2.0.0"></a>
 # [2.0.0](https://github.com/zkat/pattycake/compare/v1.1.0...v2.0.0) (2018-03-24)
 
