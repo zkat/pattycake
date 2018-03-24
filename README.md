@@ -560,3 +560,19 @@ of this matcher.
 benefits from it mostly because it relies heavily on pattern matching on
 variable assignments, not just in its case statement. The JS version of this
 would have limited utility.)
+
+#### <a href="unbound-array-rest"></a> Binding-less array rest
+
+In ECMAScript, `var [a, b, ...rest] = arr` allows bindging of "the rest" of the
+array into a variable. This syntax, though, requires that the "rest" value be
+bound to a specific variable. That is, `[a, b, ...]` is invalid syntax.
+
+The previous pattern matching proposal included syntax that allowed this to be
+the case, but only inside the LHS of `match`. It's possible the syntax could be
+added, but there's also a question of whether it's necessary, since variables in
+this proposal are always bound, rather than used for arbitrary matchin as in the
+previous proposal -- there's little use for allowing plain `...` params besides
+not wanting to have an unbound variable. That is, `[a, b, ..._]` achieves
+essentially the same thing `[a, b, ...]` does.
+
+Should this syntax be added to this proposal as well?
