@@ -207,7 +207,9 @@ which I believe should stay as they are, and why:
 #### <a href="variables-always-assign"></a> > Variables always assign
 
 When the match pattern is a variable, it should simply assign to that variable,
-instead of trying to compare the value somehow.
+instead of trying to compare the value somehow. No variable binding prefix is
+required or supported -- variables bound in a `match` behave just like function
+arguments.
 
 ```js
 const y = 2
@@ -231,7 +233,7 @@ on how to allow variable-based matching.
 
 ##### Benefits:
 
-* Follows the precedent of every other match implementation I could find. This is about as universal as I think this gets? Unless I misread/misunderstood what another language is doing or missed an exception.
+* Follows the precedent of almost every other match implementation I could find. This is about as universal as I think this gets? Swift is the only exception, requiring a `let` before a variable that's intended to be bound.
 * Consistent behavior: No ambiguity when a variable is not assigned vs when it's suddenly assigned in the scope. Behavior will remain the same.
 * Eliminates the need for an `else`/`default` leg, because assignment to any variable will be sufficient. JS programmers are already used to assigning variables that are then ignored (in functions, in particular), and different people have different tastes in what that should be. `_`, `other`, etc, would all be perfectly cromulent alternatives.
 
