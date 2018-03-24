@@ -13,9 +13,9 @@ feature. But it'll help figure out what that could actually be!
 ## Table of Contents
 
 * [Example](#example)
+* [API](#api)
 * [Design Decisions](#design-decisions)
 * [Bikesheds](#bikesheds)
-* [API](#api)
 
 ### Example
 
@@ -24,6 +24,178 @@ const val = match (await fetch(jsonService)) {
   {status: 200, {headers: {'Content-Length': s}}} => `Response size is ${s}`
   {status: 404} => 'JSON not found'
   {status} if (status >= 400) => 'request error'
+}
+```
+
+### API
+
+#### Note on API documentation
+
+This documentation described the sugared version of the `match` expression. The
+API exported by `pattycake` is similar, but uses functions and different syntax
+for the same underlying concepts.
+
+To convert a sugary `match` to a `pattycake` match:
+1. Replace the main `{}` pair with `()`
+2. Separate match clauses and bodies into matcher expressions and a fat arrow function, using the parameter list for the fat arrow for destructuring.
+3. If your clause uses the format `Foo x`, `Foo {}`, etc, use `match.$` to create the corresponding clause: `match.$(Foo, {})`
+4. Replace any variable clauses in the match side with `match.$`.
+5. If using guards, convert the guard to a function and pass it as the last argument to `match.$`. If you weren't already using `match.$` for a certain clause (because it wasn't necessary), wrap that clause with `match.$` and pass the guard function as the second argument.
+6. If using `||` or `&&`, wrap the expressions in `$.or` or `$.and`, with each alternative as an argument to those functions.
+7. If using `...splat`s with array matchers, replace the `...splat` with `$.rest` and destructure the array in the fat arrow body.
+
+##### Example
+
+```js
+match (x) {
+  {a: 1, b} => ...
+  Foo {x} => ...
+  [1, 2, ...etc] => ...
+  1 => ...
+  'string' => ...
+  true => ...
+  null => ...
+  /regexhere/ => ...
+  1 || 2 || 3 => ...
+  {x: 1} && {y} => ...
+}
+
+// Converts to...
+const $ = match.$
+match (x) (
+  {a: 1, b: $}, ({b}) => ...,
+  $(Foo, {x: $}), ({x}) => ...,
+  [1, 2, $.rest], ([a, b, ...etc]) => ...,
+  1, () => ...,
+  'string', () => ...,
+  true, () => ...,
+  null, () => ...,
+  /regexhere/, () => ...,
+  $.or(1, 2, 3), () => ...,
+  $.and({x: 1}, {y: $}), ({y}) => ...
+)
+```
+
+#### <a href="match"></a> `match (val) { [clauses]* }`
+
+The `match` expression compares `val` against a number of clauses, and executes
+the body to the right of the arrow for the clause that succeeds, returning its
+final value.
+
+There are x types of clauses: primitives, RegExp, Object, Array, `||`, `&&`, and
+variable. Each of these clauses, except `||` and `&&`, can include a custom
+matcher.
+
+Composite clauses are able to further destructure and match their input, and the
+top level clause can include a guard expression to further filter individual
+clauses.
+
+#### <a href="variable-matcher"></a> Variables
+
+Plain variables in a `match` will be bound to their associated value and made
+available to the body of that clause. If the variable is already bound in the
+surrounding scope, it will be shadowed. Values inside variables are never
+matched against directly -- use a guard instead.
+
+##### Example
+
+```js
+const y = 2
+match (1) {
+  y => y === 1 // `const y` shadowed
+}
+
+match (2) {
+  x if (x === y) => x === y === 2 // guard comparison with variable
+}
+```
+
+#### <a href="primitive-matcher"></a> Primitives
+
+Primitive types will be matched with `===`. The following literals can be
+matched against: `Number`, `String`, `Boolean`, `Null`.
+
+##### Example
+
+```js
+match (x) {
+  1 => ...
+  'foo' => ...
+  true => ...
+  null => ...
+  {x: true, y: 1, z: true} => ...
+}
+```
+
+#### <a href="object-matcher"></a> Objects
+
+Objects are destructured. Any variables mentioned in the match side MUST exist
+in the matched object, but additional properties on the object will be ignored.
+Matches within objects can be further nested with any other types.
+
+##### Example
+
+```js
+match (x) {
+  {x: 1, y} => ... // the y property is required, and is locally bound to y
+  {} => ... // matches any object
+  {x: {y: 1}} => ...
+  Foo {y} => ... // matches an instance of `Foo` or, if
+                 // `Foo[Symbol.patternMatch]` is present, that method is called
+                 // instead. y is destructured out of the `Foo` object if the
+                 // property exists.
+}
+```
+
+#### <a href="array-matcher"></a> Arrays
+
+Array values are matches individually, just like with [Object
+matchers](#object-matcher). The array length must match, unless a splat is used
+(`[1, 2, ...etc]`), in which case the array must be at least as long as the
+number of entries before the splat.
+
+Array destructuring supports using a custom matcher, just like Objects. When
+using custom matchers, the value is destructures as an `Array-like` object, so
+it doesn't need to be a subclass of `Array` -- the `length` property will be
+used for destructuring, along with any numerical keys.
+
+##### Example
+
+```js
+match (x) {
+  [a, b, 1] => ...
+  [1, 2, null] => ...
+  [1, ...etc] => ...
+  Foo [1, 2] => ...
+}
+```
+
+#### <a href="regexp-matcher"></a> RegExp
+
+Regular expression matchers are executed against the incoming value and the
+match value made available for further destructuring, with Array or Object
+matchers.
+
+##### Example
+
+```js
+match (x) {
+  /foo(bar)/u [match, submatch] => match + submatch === 'foobarbar'
+  /(?<yyyy>\d{4})-(?<mm>\d{2})-(?<dd>\d{2})/u {groups: {yyyy, mm, dd}} => ...
+}
+```
+
+#### <a href="compound-matcher"></a> `&&` and `||`
+
+You can use `&&` and `||` between expressions at any level. Guards are not
+included in these expressions, as there must be only one.
+
+##### Example
+
+```js
+match (x) {
+  1 || 2 || 3 => ...
+  [1, y] && {x: 2} => ...
 }
 ```
 
@@ -354,5 +526,3 @@ of this matcher.
 benefits from it mostly because it relies heavily on pattern matching on
 variable assignments, not just in its case statement. The JS version of this
 would have limited utility.)
-
-### API
