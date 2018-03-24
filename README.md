@@ -21,8 +21,8 @@ feature. But it'll help figure out what that could actually be!
 
 ```javascript
 const val = match (await fetch(jsonService)) {
-  {status: 200, {headers: {'Content-Length': s}}} => `Response size is ${s}`
-  {status: 404} => 'JSON not found'
+  {status: 200, {headers: {'Content-Length': s}}} => `Response size is ${s}`,
+  {status: 404} => 'JSON not found',
   {status} if (status >= 400) => 'request error'
 }
 ```
@@ -42,21 +42,21 @@ To convert a sugary `match` to a `pattycake` match:
 4. Replace any variable clauses in the match side with `match.$`.
 5. If using guards, convert the guard to a function and pass it as the last argument to `match.$`. If you weren't already using `match.$` for a certain clause (because it wasn't necessary), wrap that clause with `match.$` and pass the guard function as the second argument.
 6. If using `||` or `&&`, wrap the expressions in `$.or` or `$.and`, with each alternative as an argument to those functions.
-7. If using `...rest`s with array matchers, replace the `...rest` with `$.rest` and destructure the array in the fat arrow body.
+7. If using `...rest`s with array or object matchers, replace the `...rest` with `$.rest` and destructure the array in the fat arrow body.
 
 ##### Example
 
 ```js
 match (x) {
-  {a: 1, b} => ...
-  Foo {x} => ...
-  [1, 2, ...etc] => ...
-  1 => ...
-  'string' => ...
-  true => ...
-  null => ...
-  /regexhere/ => ...
-  1 || 2 || 3 => ...
+  {a: 1, b} => ...,
+  Foo {x} => ...,
+  [1, 2, ...etc] => ...,
+  1 => ...,
+  'string' => ...,
+  true => ...,
+  null => ...,
+  /regexhere/ => ...,
+  1 || 2 || 3 => ...,
   {x: 1} && {y} => ...
 }
 
@@ -134,9 +134,9 @@ const CustomerID = {
 }
 
 match (x) {
-  Foo {} => ... // matches if `x` is a `new Foo()`
-  MyExtractor x => // matches if `x` is an even number.
-  CustomerID 'Alex' => // matches if `x` is something like 'Alex--1234567'
+  Foo {} => ..., // matches if `x` is a `new Foo()`
+  MyExtractor x => ..., // matches if `x` is an even number.
+  CustomerID 'Alex' => ..., // matches if `x` is something like 'Alex--1234567'
 }
 ```
 
@@ -169,10 +169,10 @@ matched against: `Number`, `String`, `Boolean`, `Null`.
 
 ```js
 match (x) {
-  1 => ...
-  'foo' => ...
-  true => ...
-  null => ...
+  1 => ...,
+  'foo' => ...,
+  true => ...,
+  null => ...,
   {x: true, y: 1, z: true} => ...
 }
 ```
@@ -192,12 +192,12 @@ destructuring works.
 
 ```js
 match (x) {
-  {x: 1, y} => ... // the y property is required, and is locally bound to y
-  {} => ... // matches any object
-  {x: {y: 1}} => ...
-  {x, ...y} => ... // binds all-other-properties to `y`.
-  {x, ...{y}} => ... // SyntaxError
-  Foo {y} => ... // matches an instance of `Foo` or, if
+  {x: 1, y} => ..., // the y property is required, and is locally bound to y
+  {} => ..., // matches any object
+  {x: {y: 1}} => ...,
+  {x, ...y} => ..., // binds all-other-properties to `y`.
+  {x, ...{y}} => ..., // SyntaxError
+  Foo {y} => ...,// matches an instance of `Foo` or, if
                  // `Foo[Symbol.patternMatch]` is present, that method is called
                  // instead. y is destructured out of the `Foo` object if the
                  // property exists.
@@ -225,11 +225,11 @@ See also: [bikeshed on array rest params](#unbound-array-rest).
 
 ```js
 match (x) {
-  [a, b, 1] => ...
-  [1, 2, null] => ...
-  [1, ...etc] => ...
-  [1, ...[2]] => ... // Recursive matching on `rest` is allowed
-  Foo [1, 2] => ...
+  [a, b, 1] => ...,
+  [1, 2, null] => ...,
+  [1, ...etc] => ...,
+  [1, ...[2]] => ..., // Recursive matching on `rest` is allowed
+  Foo [1, 2] => ...,
 }
 ```
 
@@ -243,8 +243,8 @@ matchers.
 
 ```js
 match (x) {
-  /foo/ => ... // x matched /foo/ just fine.
-  /foo(bar)/u [match, submatch] => ... // array-destructuring for matches
+  /foo/ => ..., // x matched /foo/ just fine.
+  /foo(bar)/u [match, submatch] => ..., // array-destructuring for matches
   /(?<yyyy>\d{4})-(?<mm>\d{2})-(?<dd>\d{2})/u {
     groups: {yyyy, mm, dd}
   } => ... // object-destructuring for matches, using named regexp groups!
@@ -260,7 +260,7 @@ included in these expressions, as there must be only one.
 
 ```js
 match (x) {
-  1 || 2 || 3 => ...
+  1 || 2 || 3 => ...,
   [1, y] && {x: 2} => ...
 }
 ```
@@ -306,13 +306,17 @@ ObjectMatchPattern :
 ObjectMatchKeyVal :
   Variable
   ObjectKey `:` MatchExressionClauseLHS
+  // Unlike Arrays, object destructuring can _only_ be a variable.
+  `...` Variable
 
 ArrayMatchPattern :
   `[` ArrayMatchPatternElement [`,`, ArrayMatchPatternElement]* `]`
 
 ArrayMatchPatternElement :
   MatchExpressionClauseLHS
-  `...` Variable
+  // NOTE: I'm not sure what-all array destructuring is actually -able- to
+  //       destructure here.
+  `...` MatchExpressionClauseLHS
 
 IdentifierMatchPattern :
   Variable
@@ -331,21 +335,6 @@ As part of distancing this feature from `switch`, and focusing on semantics that
 work best for it, fallthrough is not possible between multiple legs. It is
 expected that match clause are complete enough for picking a single leg, and
 further skipping can be done using guards or nested `match`.
-
-That is:
-
-```js
-match (x) {
-  {x: 1, y} => {
-    if (y > 10) { continue}
-  }
-  {x: 1} => {
-    ...
-  }
-}
-```
-
-Is better written as:
 
 ```js
 match (x) {
@@ -372,7 +361,7 @@ Can be rewritten with `match` as:
 
 ```js
 match (x) {
-  'foo' || 'bar' => doThing()
+  'foo' || 'bar' => doThing(),
   'baz' => doOtherThing()
 }
 ```
@@ -396,7 +385,7 @@ Guards can be used instead, for comparisons:
 ```js
 const y = 2
 match (1) {
-  x if (y === 2) => 'does not match'
+  x if (y === 2) => 'does not match',
   x if (x === 1) => 'x is 1'
 }
 ```
@@ -418,8 +407,8 @@ always compared using `===`:
 
 ```js
 match (x) => {
-  1 => 'x is 1'
-  'foo' => 'x is foo'
+  1 => 'x is 1',
+  'foo' => 'x is foo',
   null => 'x is null (not undefined)'
 }
 ```
@@ -452,8 +441,8 @@ from `switch`'s.
 
 ```js
 match (x) {
-  foo => foo + 1
-  {y: 1} => x.y === y
+  foo => foo + 1,
+  {y: 1} => x.y === y,
   bar => {
     console.log(bar)
     return bar + 2
@@ -473,7 +462,7 @@ for one-of, and `&&` for all-of matches:
 
 ```js
 match (x) {
-  1 || 2 || 3 || x if (x > 10) => '...'
+  1 || 2 || 3 || x if (x > 10) => '...',
   Bar {} && Foo {} => 'instanceof both Bar and Foo classes'
 }
 ```
@@ -551,7 +540,7 @@ available for that leg:
 
 ```js
 match (1) {
-  undefined => 'always matches'
+  undefined => 'always matches',
   1 => 'unreachable code'
 }
 ```
@@ -565,7 +554,7 @@ an `===` comparison, as the other primitive literals do:
 
 ```js
 match (1) {
-  undefined => 'nope'
+  undefined => 'nope',
   1 => 'matches === 1'
 }
 ```
@@ -658,9 +647,9 @@ could double-up as a matcher "tag":
 
 ```js
 match (obj) {
-  @Foo => 'Foo[Symbol.patternMatch](obj) executed!'
-  _@Foo => '@Foo is a shorthand for this'
-  Foo {} => 'the way you would do it otherwise'
+  @Foo => 'Foo[Symbol.patternMatch](obj) executed!',
+  _@Foo => '@Foo is a shorthand for this',
+  Foo {} => 'the way you would do it otherwise',
   Foo _ => 'though this works, too'
 }
 ```
@@ -696,7 +685,7 @@ Using the operator directly from Elixir:
 ```js
 const y = 1
 match (x) {
-  ^y => 'x is 1'
+  ^y => 'x is 1',
   x if (x === y) => 'this is how you would do it otherwise'
 }
 ```
@@ -708,7 +697,7 @@ A more compelling reason to have this terseness might be to allow matches on
 import {FOO, BAR} from './constants.js'
 
 match (x) {
-  ^FOO => 'x was the FOO constant'
+  ^FOO => 'x was the FOO constant',
   ^BAR => 'x was the BAR constant'
 }
 ```
@@ -731,13 +720,13 @@ function ByVal (obj) {
 }
 
 match (x) {
-  ByVal(c.FOO) x => 'got a FOO'
+  ByVal(c.FOO) x => 'got a FOO',
   ByVal(c.BAR) x => 'got a BAR'
 }
 ```
 
 This might be enough, and might even be a reason to consider a built-in version
-of this matcher.
+of this extractor.
 
 (Kat's opinion: we have terse enough guards that this seems useless. Elixir
 benefits from it mostly because it relies heavily on pattern matching on
