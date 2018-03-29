@@ -18,11 +18,19 @@ feature. But it'll help figure out what that could actually be!
 ### Example
 
 ```javascript
-const val = match (await fetch(jsonService)) {
-  {status: 200, {headers: {'Content-Length': s}}} => `Response size is ${s}`,
-  {status: 404} => 'JSON not found',
-  res@{status} if (status >= 400) => throw new RequestError(res)
-}
+import match, {$} from 'pattycake'
+
+const res = await fetch(jsonService)
+const val = match (res) (
+  {
+    status: 200,
+    headers: {'Content-Length': $}
+  }, ({
+    headers: {'Content-Length', s}}
+  ) => `size is ${s}`,
+  {status: 404}, () => 'JSON not found',
+  $({status: $}, ({status}) => status >= 400), () => throw new RequestError(res)
+)
 ```
 
 ### API
